@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profiler</title>
+    <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+    <h1>Profiler</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="dataFile" accept=".txt">
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="chartContainer" style="display: none;">
+        <select id="chartType">
+            <option value="line">Line</option>
+            <option value="bar">Bar</option>
+            <option value="polarArea">Polar Area</option>
+        </select>
+        
+        <div id="taskButtons"></div>
+        <div id="coreButtons"></div>
+
+        <button id="showChart">Show Chart</button>
+
+        <canvas id="chartCanvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let selectedCore = null;
+        let selectedTask = null;
+        let globalData = null;
+        let chartInstance = null;
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            globalData = data;
+            populateButtons(data.cores, Object.keys(data.stats.tasks));
+            document.getElementById('chartContainer').style.display = 'block';
+        });
+
+        function populateButtons(cores, tasks) {
+            const coreButtons = document.getElementById('coreButtons');
+            const taskButtons = document.getElementById('taskButtons');
+
+            coreButtons.innerHTML = '';
+            taskButtons.innerHTML = '';
+
+            tasks.slice(0, 5).forEach(task => {
+                const button = document.createElement('button');
+                button.textContent = task;
+                button.addEventListener('click', () => {
+                    selectedTask = task;
+                    selectedCore = null;
+                    highlightSelectedButton(taskButtons, button);
+                    highlightSelectedButton(coreButtons, null);
+                });
+                taskButtons.appendChild(button);
+            });
+
+            cores.slice(0, 5).forEach(core => {
+                const button = document.createElement('button');
+                button.textContent = core;
+                button.addEventListener('click', () => {
+                    selectedCore = core;
+                    selectedTask = null;
+                    highlightSelectedButton(coreButtons, button);
+                    highlightSelectedButton(taskButtons, null);
+                });
+                coreButtons.appendChild(button);
+            });
+        }
+
+        function highlightSelectedButton(container, button) {
+            Array.from(container.children).forEach(btn => btn.classList.remove('selected'));
+            if (button) button.classList.add('selected');
+        }
+
+        document.getElementById('showChart').addEventListener('click', () => {
+            if (selectedCore) {
+                const chartType = document.getElementById('chartType').value;
+                showCoreChart(selectedCore, chartType);
+            } else if (selectedTask) {
+                const chartType = document.getElementById('chartType').value;
+                showTaskChart(selectedTask, chartType);
+            } else {
+                alert('Please select either a core or a task.');
+            }
+        });
+
+        function showCoreChart(core, chartType) {
+            const coreData = globalData.stats.cores[core];
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: ['Task1', 'Task2', 'Task3', 'Task4', 'Task5'],
+                    datasets: [
+                        {
+                            label: 'Min',
+                            data: coreData.min,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Max',
+                            data: coreData.max,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Avg',
+                            data: coreData.avg,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {}
+            });
+        }
+
+        function showTaskChart(task, chartType) {
+            const taskData = globalData.stats.tasks[task];
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: globalData.cores,
+                    datasets: [
+                        {
+                            label: 'Min',
+                            data: taskData.min,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Max',
+                            data: taskData.max,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Avg',
+                            data: taskData.avg,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {}
+            });
+        }
+    </script>
+    <style>
+        .selected {
+            background-color: green;
+            color: white;
+        }
+    </style>
+</body>
+</html>
